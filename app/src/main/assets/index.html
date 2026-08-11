@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCalc Pro</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f0f13;--surface:#1a1a24;--surface2:#23232f;--surface3:#2c2c3a;
+    --accent:#7c6ff7;--accent2:#a78bfa;--text:#f0f0ff;--text2:#9898b8;--text3:#5a5a7a;
+    --btn-bg:#23232f;--btn-hover:#2e2e3f;--btn-active:#1a1a28;
+    --op:#7c6ff7;--op-hover:#6355e8;--eq:#7c6ff7;
+    --danger:#e84040;--ok:#3eb87a;--warn:#f59e0b;
+    --radius:14px;--radius-sm:10px;--shadow:0 8px 32px rgba(0,0,0,0.45);
+    --trans:0.18s cubic-bezier(.4,0,.2,1);
+  }
+  .light{
+    --bg:#f0f0f8;--surface:#ffffff;--surface2:#f5f5ff;--surface3:#ebebf8;
+    --text:#1a1a2e;--text2:#555577;--text3:#9999bb;
+    --btn-bg:#ffffff;--btn-hover:#ebebf8;--btn-active:#ddddf0;
+    --shadow:0 8px 32px rgba(100,100,180,0.13);
+  }
+  body{background:var(--bg);display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:20px 12px 40px;transition:background var(--trans);font-family:'Segoe UI',system-ui,sans-serif}
+  .app{width:100%;max-width:420px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px}
+  .title{font-size:15px;font-weight:600;color:var(--accent2);letter-spacing:.5px}
+  .topbar-right{display:flex;gap:8px}
+  .icon-btn{background:var(--surface);border:1px solid var(--surface3);color:var(--text2);width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:var(--trans);position:relative;overflow:hidden}
+  .icon-btn:hover{background:var(--surface3);color:var(--text)}
+  .mode-badge{background:var(--surface);border:1px solid var(--surface3);color:var(--accent2);padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:var(--trans);letter-spacing:.5px;white-space:nowrap}
+  .mode-badge:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .calc-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;border:1px solid var(--surface3)}
+  .display{background:var(--surface2);padding:20px 20px 14px;min-height:110px;position:relative}
+  .expr{font-size:13px;color:var(--text3);min-height:18px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px;transition:var(--trans)}
+  .result{font-size:38px;font-weight:300;color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all var(--trans);letter-spacing:-1px}
+  .result.small{font-size:26px}
+  .result.tiny{font-size:18px}
+  .mem-indicator{position:absolute;top:10px;left:14px;font-size:11px;color:var(--accent2);font-weight:600;opacity:0;transition:var(--trans)}
+  .mem-indicator.show{opacity:1}
+  .mode-label{position:absolute;top:10px;right:14px;font-size:11px;color:var(--text3);font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+  .error-flash{color:var(--danger)!important}
+  .btn-grid{padding:14px;display:grid;gap:8px;transition:all var(--trans)}
+  .basic-grid{grid-template-columns:repeat(4,1fr)}
+  .sci-grid{grid-template-columns:repeat(5,1fr)}
+  .prog-grid{grid-template-columns:repeat(4,1fr)}
+  .adv-grid{grid-template-columns:repeat(4,1fr)}
+  .btn{background:var(--btn-bg);border:1px solid var(--surface3);color:var(--text);border-radius:var(--radius-sm);padding:0;height:52px;font-size:15px;font-weight:500;cursor:pointer;transition:var(--trans);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;user-select:none}
+  .btn:hover{background:var(--btn-hover);color:var(--accent2);border-color:var(--accent);transform:translateY(-1px)}
+  .btn:active{transform:scale(.95) translateY(0);background:var(--btn-active)}
+  .btn.op{color:var(--accent2);background:rgba(124,111,247,.1)}
+  .btn.op:hover{background:rgba(124,111,247,.22)}
+  .btn.eq{background:var(--accent);color:#fff;border-color:var(--accent);font-size:22px}
+  .btn.eq:hover{background:#6355e8;border-color:#6355e8}
+  .btn.clear{color:var(--danger)}
+  .btn.clear:hover{background:rgba(232,64,64,.12);color:var(--danger)}
+  .btn.special{color:var(--warn);font-size:12px}
+  .btn.special:hover{background:rgba(245,158,11,.12)}
+  .btn.num{font-size:18px}
+  .btn.wide{grid-column:span 2}
+  .btn.hex-active{color:var(--ok);border-color:var(--ok)}
+  .btn.disabled{opacity:.3;cursor:not-allowed;pointer-events:none}
+  .ripple{position:absolute;border-radius:50%;background:rgba(124,111,247,.35);transform:scale(0);animation:ripple-anim .5s linear;pointer-events:none}
+  @keyframes ripple-anim{to{transform:scale(4);opacity:0}}
+  .prog-display-extra{background:var(--surface2);border-top:1px solid var(--surface3);padding:10px 16px;display:none}
+  .prog-display-extra.show{display:block}
+  .base-row{display:flex;gap:6px;margin-bottom:4px}
+  .base-tag{font-size:11px;font-weight:700;color:var(--text3);min-width:28px}
+  .base-val{font-size:12px;color:var(--text2);font-family:monospace;word-break:break-all}
+  .history-panel{background:var(--surface2);border-top:1px solid var(--surface3);max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1)}
+  .history-panel.open{max-height:220px}
+  .history-inner{padding:10px 14px;overflow-y:auto;max-height:220px}
+  .hist-title{font-size:11px;color:var(--text3);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between}
+  .hist-entry{font-size:13px;color:var(--text2);padding:5px 0;border-bottom:1px solid var(--surface3);display:flex;justify-content:space-between;cursor:pointer;transition:color .15s}
+  .hist-entry:hover{color:var(--text)}
+  .hist-entry:last-child{border-bottom:none}
+  .hist-expr{color:var(--text3);font-size:12px}
+  .hist-res{color:var(--accent2);font-weight:600}
+  .slide-in{animation:slide-in .22s cubic-bezier(.4,0,.2,1)}
+  @keyframes slide-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .copy-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ok);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;z-index:999}
+  .copy-toast.show{opacity:1}
+  .btn.prog-op{font-size:12px;color:var(--ok)}
+  @media(max-width:380px){.result{font-size:30px}.btn{height:46px;font-size:13px}.sci-grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <span class="title">SmartCalc</span>
+    <div class="topbar-right">
+      <button class="icon-btn" id="histBtn" title="History">&#9776;</button>
+      <button class="mode-badge" id="modeBtn">BASIC</button>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme">&#9788;</button>
+    </div>
+  </div>
+  <div class="calc-card">
+    <div class="display">
+      <div class="mem-indicator" id="memInd">M</div>
+      <div class="mode-label" id="modeLabel">BASIC</div>
+      <div class="expr" id="expr"></div>
+      <div class="result" id="result">0</div>
+    </div>
+    <div class="prog-display-extra" id="progExtra">
+      <div class="base-row"><span class="base-tag">HEX</span><span class="base-val" id="hexVal">0</span></div>
+      <div class="base-row"><span class="base-tag">BIN</span><span class="base-val" id="binVal">0</span></div>
+      <div class="base-row"><span class="base-tag">OCT</span><span class="base-val" id="octVal">0</span></div>
+    </div>
+    <div class="history-panel" id="histPanel">
+      <div class="history-inner">
+        <div class="hist-title"><span>History</span><span id="clearHist" style="cursor:pointer;color:var(--danger)">Clear</span></div>
+        <div id="histList"></div>
+      </div>
+    </div>
+    <div class="btn-grid basic-grid slide-in" id="btnGrid"></div>
+  </div>
+</div>
+<div class="copy-toast" id="copyToast">Copied!</div>
+<script>
+const MODES=['BASIC','SCIENTIFIC','PROGRAMMER','ADVANCED'];
+let mode=0,expr='',input='0',memory=0,hasMemory=false,justCalc=false,history=[],isNewInput=true;
+const modeBtn=document.getElementById('modeBtn');
+const btnGrid=document.getElementById('btnGrid');
+const resultEl=document.getElementById('result');
+const exprEl=document.getElementById('expr');
+const modeLabel=document.getElementById('modeLabel');
+const memInd=document.getElementById('memInd');
+const progExtra=document.getElementById('progExtra');
+const histPanel=document.getElementById('histPanel');
+const histList=document.getElementById('histList');
+const histBtn=document.getElementById('histBtn');
+const themeBtn=document.getElementById('themeBtn');
+const copyToast=document.getElementById('copyToast');
+
+const LAYOUTS={
+  BASIC:{
+    grid:'basic-grid',
+    buttons:[
+      {l:'MC',c:'special',a:'mc'},{l:'MR',c:'special',a:'mr'},{l:'M+',c:'special',a:'mplus'},{l:'M-',c:'special',a:'mminus'},
+      {l:'C',c:'clear',a:'clear'},{l:'⌫',c:'op',a:'back'},{l:'%',c:'op',a:'pct'},{l:'÷',c:'op',a:'op /'},
+      {l:'7',c:'num',a:'num 7'},{l:'8',c:'num',a:'num 8'},{l:'9',c:'num',a:'num 9'},{l:'×',c:'op',a:'op *'},
+      {l:'4',c:'num',a:'num 4'},{l:'5',c:'num',a:'num 5'},{l:'6',c:'num',a:'num 6'},{l:'-',c:'op',a:'op -'},
+      {l:'1',c:'num',a:'num 1'},{l:'2',c:'num',a:'num 2'},{l:'3',c:'num',a:'num 3'},{l:'+',c:'op',a:'op +'},
+      {l:'+/-',c:'special',a:'negate'},{l:'0',c:'num',a:'num 0'},{l:'.',c:'num',a:'dot'},{l:'=',c:'eq',a:'eq'},
+    ]
+  },
+  SCIENTIFIC:{
+    grid:'sci-grid',
+    buttons:[
+      {l:'sin',c:'special',a:'fn sin'},{l:'cos',c:'special',a:'fn cos'},{l:'tan',c:'special',a:'fn tan'},{l:'log',c:'special',a:'fn log'},{l:'ln',c:'special',a:'fn ln'},
+      {l:'x²',c:'special',a:'fn sq'},{l:'x³',c:'special',a:'fn cb'},{l:'√',c:'special',a:'fn sqrt'},{l:'∛',c:'special',a:'fn cbrt'},{l:'1/x',c:'special',a:'fn inv'},
+      {l:'xʸ',c:'op',a:'op **'},{l:'(',c:'op',a:'paren ('},{l:')',c:'op',a:'paren )'},{l:'π',c:'special',a:'const pi'},{l:'e',c:'special',a:'const e'},
+      {l:'n!',c:'special',a:'fn fact'},{l:'|x|',c:'special',a:'fn abs'},{l:'%',c:'op',a:'pct'},{l:'÷',c:'op',a:'op /'},{l:'C',c:'clear',a:'clear'},
+      {l:'7',c:'num',a:'num 7'},{l:'8',c:'num',a:'num 8'},{l:'9',c:'num',a:'num 9'},{l:'×',c:'op',a:'op *'},{l:'⌫',c:'op',a:'back'},
+      {l:'4',c:'num',a:'num 4'},{l:'5',c:'num',a:'num 5'},{l:'6',c:'num',a:'num 6'},{l:'-',c:'op',a:'op -'},{l:'MR',c:'special',a:'mr'},
+      {l:'1',c:'num',a:'num 1'},{l:'2',c:'num',a:'num 2'},{l:'3',c:'num',a:'num 3'},{l:'+',c:'op',a:'op +'},{l:'M+',c:'special',a:'mplus'},
+      {l:'+/-',c:'special',a:'negate'},{l:'0',c:'num',a:'num 0'},{l:'.',c:'num',a:'dot'},{l:'=',c:'eq',a:'eq'},{l:'MC',c:'special',a:'mc'},
+    ]
+  },
+  PROGRAMMER:{
+    grid:'prog-grid',
+    buttons:[
+      {l:'C',c:'clear',a:'clear'},{l:'⌫',c:'back',a:'back'},{l:'AND',c:'prog-op special',a:'op &'},{l:'OR',c:'prog-op special',a:'op |'},
+      {l:'A',c:'num',a:'num A'},{l:'B',c:'num',a:'num B'},{l:'XOR',c:'prog-op special',a:'op ^'},{l:'NOT',c:'prog-op special',a:'fn not'},
+      {l:'C',c:'num',a:'num C'},{l:'D',c:'num',a:'num D'},{l:'<<',c:'prog-op special',a:'op <<'},{l:'>>',c:'prog-op special',a:'op >>'},
+      {l:'E',c:'num',a:'num E'},{l:'F',c:'num',a:'num F'},{l:'MOD',c:'prog-op special',a:'op %'},{l:'÷',c:'op',a:'op /'},
+      {l:'7',c:'num',a:'num 7'},{l:'8',c:'num',a:'num 8'},{l:'9',c:'num',a:'num 9'},{l:'×',c:'op',a:'op *'},
+      {l:'4',c:'num',a:'num 4'},{l:'5',c:'num',a:'num 5'},{l:'6',c:'num',a:'num 6'},{l:'-',c:'op',a:'op -'},
+      {l:'1',c:'num',a:'num 1'},{l:'2',c:'num',a:'num 2'},{l:'3',c:'num',a:'num 3'},{l:'+',c:'op',a:'op +'},
+      {l:'±',c:'special',a:'negate'},{l:'0',c:'num',a:'num 0'},{l:'.',c:'num',a:'dot'},{l:'=',c:'eq',a:'eq'},
+    ]
+  },
+  ADVANCED:{
+    grid:'adv-grid',
+    buttons:[
+      {l:'MC',c:'special',a:'mc'},{l:'MR',c:'special',a:'mr'},{l:'M+',c:'special',a:'mplus'},{l:'M-',c:'special',a:'mminus'},
+      {l:'C',c:'clear',a:'clear'},{l:'⌫',c:'op',a:'back'},{l:'%',c:'op',a:'pct'},{l:'÷',c:'op',a:'op /'},
+      {l:'7',c:'num',a:'num 7'},{l:'8',c:'num',a:'num 8'},{l:'9',c:'num',a:'num 9'},{l:'×',c:'op',a:'op *'},
+      {l:'4',c:'num',a:'num 4'},{l:'5',c:'num',a:'num 5'},{l:'6',c:'num',a:'num 6'},{l:'-',c:'op',a:'op -'},
+      {l:'1',c:'num',a:'num 1'},{l:'2',c:'num',a:'num 2'},{l:'3',c:'num',a:'num 3'},{l:'+',c:'op',a:'op +'},
+      {l:'eˣ',c:'special',a:'fn exp'},{l:'10ˣ',c:'special',a:'fn ten'},{l:'x²',c:'special',a:'fn sq'},{l:'√',c:'special',a:'fn sqrt'},
+      {l:'+/-',c:'special',a:'negate'},{l:'0',c:'num',a:'num 0'},{l:'.',c:'num',a:'dot'},{l:'=',c:'eq',a:'eq'},
+    ]
+  }
+};
+
+function buildGrid(){
+  const m=MODES[mode];
+  const layout=LAYOUTS[m];
+  btnGrid.className='btn-grid '+layout.grid+' slide-in';
+  void btnGrid.offsetWidth;
+  btnGrid.innerHTML='';
+  layout.buttons.forEach(b=>{
+    const btn=document.createElement('button');
+    btn.className='btn '+b.c;
+    btn.textContent=b.l;
+    btn.dataset.action=b.a;
+    if(mode===2){
+      const hexLetters=['A','B','C','D','E','F'];
+      if(hexLetters.includes(b.l)){
+        btn.classList.add('hex-active');
+      }
+    }
+    btn.addEventListener('pointerdown',e=>{createRipple(e,btn)});
+    btn.addEventListener('click',()=>handleAction(b.a));
+    btnGrid.appendChild(btn);
+  });
+  progExtra.className='prog-display-extra'+(mode===2?' show':'');
+  modeBtn.textContent=m;
+  modeLabel.textContent=m;
+  if(mode===2) updateProgDisplay();
+}
+
+function createRipple(e,btn){
+  const r=document.createElement('span');
+  r.className='ripple';
+  const rect=btn.getBoundingClientRect();
+  const size=Math.max(rect.width,rect.height)*1.5;
+  r.style.cssText=`width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  btn.appendChild(r);
+  setTimeout(()=>r.remove(),600);
+}
+
+function getNum(){return parseFloat(input)||0}
+
+function setDisplay(val,exprStr=''){
+  let s=val.toString();
+  if(s.length>14) s=parseFloat(val).toPrecision(10).replace(/\.?0+$/,'');
+  resultEl.textContent=formatNum(s);
+  resultEl.className='result'+(s.length>14?' tiny':s.length>9?' small':'');
+  exprEl.textContent=exprStr;
+  if(mode===2) updateProgDisplay(val);
+}
+
+function formatNum(s){
+  if(s.includes('e')||isNaN(s)) return s;
+  const parts=s.split('.');
+  parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return parts.join('.');
+}
+
+function updateProgDisplay(v){
+  const n=Math.trunc(parseFloat(v||input)||0);
+  document.getElementById('hexVal').textContent=n.toString(16).toUpperCase();
+  document.getElementById('binVal').textContent=n.toString(2);
+  document.getElementById('octVal').textContent=n.toString(8);
+}
+
+function factorial(n){
+  if(n<0||n!==Math.floor(n)) return NaN;
+  if(n>170) return Infinity;
+  let r=1;for(let i=2;i<=n;i++)r*=i;return r;
+}
+
+function handleAction(a){
+  const parts=a.split(' ');
+  const cmd=parts[0];
+  const arg=parts[1];
+  if(cmd==='num'){
+    const d=arg;
+    if(mode===2){
+      const hexChars='0123456789ABCDEF';
+      if(!hexChars.includes(d.toUpperCase())) return;
+    }
+    if(input==='0'||isNewInput){input=d;isNewInput=false;}
+    else if(input.length<16) input+=d;
+    setDisplay(input,exprEl.textContent);
+  } else if(cmd==='dot'){
+    if(isNewInput){input='0.';isNewInput=false;}
+    else if(!input.includes('.')) input+='.';
+    setDisplay(input,exprEl.textContent);
+  } else if(cmd==='op'){
+    const cur=parseFloat(input)||0;
+    if(expr&&!isNewInput){
+      try{
+        const res=safeEval(expr+input);
+        expr=formatNum(String(res)).replace(/,/g,'')+' '+arg+' ';
+        input=String(res);setDisplay(res,expr);
+      } catch{
+        expr=input+' '+arg+' ';
+        setDisplay(input,expr);
+      }
+    } else {
+      expr=input+' '+arg+' ';
+    }
+    isNewInput=true;
+    setDisplay(input,expr);
+  } else if(cmd==='paren'){
+    if(isNewInput) expr+='(';
+    else{expr+=input+(arg===')'?' )':' (');input='0';isNewInput=true;}
+    setDisplay(input,expr);
+  } else if(a==='eq'){
+    let full=expr+(isNewInput?'':input);
+    if(!full) return;
+    try{
+      const res=safeEval(full);
+      if(!isFinite(res)) throw new Error('Math error');
+      addHistory(full,res);
+      setDisplay(res,full+' =');
+      input=String(res);expr='';isNewInput=true;
+    } catch(err){
+      flashError(err.message||'Error');
+    }
+  } else if(a==='clear'){
+    input='0';expr='';isNewInput=true;setDisplay('0','');
+  } else if(a==='back'){
+    if(!isNewInput&&input.length>1){input=input.slice(0,-1);}
+    else{input='0';isNewInput=true;}
+    setDisplay(input,exprEl.textContent);
+  } else if(a==='pct'){
+    const n=parseFloat(input);
+    if(expr){
+      const base=parseFloat(expr.split(' ')[0])||0;
+      input=String(base*n/100);
+    } else {
+      input=String(n/100);
+    }
+    setDisplay(input,exprEl.textContent);
+    isNewInput=true;
+  } else if(a==='negate'){
+    const n=parseFloat(input);
+    input=String(-n);setDisplay(input,exprEl.textContent);
+  } else if(cmd==='fn'){
+    const n=parseFloat(input)||0;
+    let res;
+    if(arg==='sin') res=Math.sin(n*Math.PI/180);
+    else if(arg==='cos') res=Math.cos(n*Math.PI/180);
+    else if(arg==='tan') res=Math.tan(n*Math.PI/180);
+    else if(arg==='log') res=Math.log10(n);
+    else if(arg==='ln') res=Math.log(n);
+    else if(arg==='sq') res=n*n;
+    else if(arg==='cb') res=n*n*n;
+    else if(arg==='sqrt') res=Math.sqrt(n);
+    else if(arg==='cbrt') res=Math.cbrt(n);
+    else if(arg==='inv') res=1/n;
+    else if(arg==='fact') res=factorial(n);
+    else if(arg==='abs') res=Math.abs(n);
+    else if(arg==='exp') res=Math.exp(n);
+    else if(arg==='ten') res=Math.pow(10,n);
+    else if(arg==='not') res=~Math.trunc(n);
+    if(res===undefined||!isFinite(res)) flashError('Math Error');
+    else{
+      addHistory(arg+'('+n+')',res);
+      input=String(res);setDisplay(res,arg+'('+n+') =');isNewInput=true;
+    }
+  } else if(cmd==='const'){
+    input=arg==='pi'?String(Math.PI):String(Math.E);
+    setDisplay(input,exprEl.textContent);isNewInput=false;
+  } else if(a==='mc'){memory=0;hasMemory=false;memInd.classList.remove('show');}
+  else if(a==='mr'){if(hasMemory){input=String(memory);setDisplay(input,exprEl.textContent);isNewInput=true;}}
+  else if(a==='mplus'){memory+=parseFloat(input)||0;hasMemory=true;memInd.classList.add('show');flashMem();}
+  else if(a==='mminus'){memory-=parseFloat(input)||0;hasMemory=true;memInd.classList.add('show');flashMem();}
+  if(mode===2) updateProgDisplay();
+}
+
+function safeEval(str){
+  str=str.replace(/×/g,'*').replace(/÷/g,'/').replace(/\s+/g,' ').trim();
+  str=str.replace(/\*\*/g,'**');
+  if(!/^[0-9+\-*/%^&|<>().\sABCDEF]+$/i.test(str)&&!str.includes('**')) throw new Error('Invalid');
+  return Function('"use strict";return ('+str+')')();
+}
+
+function flashError(msg){
+  resultEl.textContent=msg;
+  resultEl.classList.add('error-flash');
+  setTimeout(()=>{resultEl.classList.remove('error-flash');setDisplay(input,exprEl.textContent);},1200);
+}
+
+function flashMem(){
+  const old=memInd.textContent;
+  memInd.style.color='var(--ok)';
+  memInd.textContent='M = '+memory.toFixed(4).replace(/\.?0+$/,'');
+  setTimeout(()=>{memInd.style.color='';memInd.textContent='M';},1000);
+}
+
+function addHistory(expr,res){
+  history.unshift({expr:expr.replace(/\s+/g,' '),res:String(res)});
+  if(history.length>30) history.pop();
+  renderHistory();
+}
+
+function renderHistory(){
+  histList.innerHTML='';
+  if(!history.length){histList.innerHTML='<div style="color:var(--text3);font-size:13px;padding:8px 0">No history yet</div>';return;}
+  history.forEach((h,i)=>{
+    const div=document.createElement('div');
+    div.className='hist-entry';
+    div.innerHTML=`<span class="hist-expr">${h.expr}</span><span class="hist-res">${formatNum(h.res)}</span>`;
+    div.addEventListener('click',()=>{input=h.res;setDisplay(h.res,'');isNewInput=true;});
+    histList.appendChild(div);
+  });
+}
+
+document.getElementById('clearHist').addEventListener('click',()=>{history=[];renderHistory();});
+
+modeBtn.addEventListener('click',()=>{
+  mode=(mode+1)%MODES.length;
+  input='0';expr='';isNewInput=true;
+  buildGrid();
+  setDisplay('0','');
+});
+
+themeBtn.addEventListener('click',()=>{
+  document.body.classList.toggle('light');
+  themeBtn.textContent=document.body.classList.contains('light')?'☾':'☼';
+});
+
+histBtn.addEventListener('click',()=>{
+  histPanel.classList.toggle('open');
+  renderHistory();
+});
+
+resultEl.addEventListener('dblclick',()=>{
+  navigator.clipboard.writeText(resultEl.textContent.replace(/,/g,'')).then(()=>{
+    copyToast.classList.add('show');
+    setTimeout(()=>copyToast.classList.remove('show'),1800);
+  });
+});
+
+document.addEventListener('keydown',e=>{
+  const k=e.key;
+  if(k>='0'&&k<='9') handleAction('num '+k);
+  else if(k==='.') handleAction('dot');
+  else if(k==='+') handleAction('op +');
+  else if(k==='-') handleAction('op -');
+  else if(k==='*') handleAction('op *');
+  else if(k==='/'){e.preventDefault();handleAction('op /');}
+  else if(k==='Enter'||k==='=') handleAction('eq');
+  else if(k==='Backspace') handleAction('back');
+  else if(k==='Escape') handleAction('clear');
+  else if(k==='%') handleAction('pct');
+});
+
+buildGrid();
+setDisplay('0','');
+renderHistory();
+</script>
+
+<footer class="app-footer">Made by Bhim Mondal</footer>
+<style>
+.app-footer{
+  text-align:center;
+  color:var(--text3);
+  font-size:11px;
+  padding:12px 0 2px;
+  letter-spacing:.3px;
+  font-weight:500;
+}
+</style>
+
+</body>
+</html>
